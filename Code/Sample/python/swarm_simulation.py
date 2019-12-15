@@ -45,6 +45,7 @@ class World():
         wallId = p.loadSDF("../models/walls.sdf")[0]
         p.resetBasePositionAndOrientation(wallId, [2., -2., 0], (0., 0., 0., 1.))
 
+
         # tube
         # wallId = p.loadSDF("../models/walls.sdf")[0]
         # p.resetBasePositionAndOrientation(wallId, [-1., 5., 0], (0., 0., 0., 1.))

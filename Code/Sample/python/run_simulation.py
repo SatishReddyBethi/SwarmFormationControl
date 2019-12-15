@@ -10,11 +10,12 @@ from swarm_simulation import World
 
 # the main control loop
 
-#initialize the simulation
+# initialize the simulation
 world = World()
 
 t = 0.
 counter = 0
+Robots = world.robots
 
 # starts a simulation
 while True:
