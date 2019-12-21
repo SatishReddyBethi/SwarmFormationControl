@@ -113,7 +113,7 @@ class World():
             for j,r2 in enumerate(self.robots):
                 if(r.id != r2.id):
                     pos2, or2 = r2.get_pos_and_orientation()
-                    if(np.linalg.norm(pos1-pos2) < 100):#self.max_communication_distance):#Edit
+                    if(np.linalg.norm(pos1-pos2) < self.max_communication_distance):#Edit
                         r.neighbors.append(j)
         
         # for each robot send and receive messages

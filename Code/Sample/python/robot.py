@@ -33,21 +33,23 @@ class Robot():
         self.L = self.get_laplacian(self.Edges,self.No_of_Robots,False)
         self.K1 = 1
         self.K2 = 10/self.dt
-        self.K3 = 10 /self.dt
+        self.K3 = 1 /self.dt
         self.OK = 5/self.dt
         self.D = 0 /self.dt
-        self.Var = 0.04
+        self.Var = 0.001
         self.E = self.get_Incidence(self.Edges,self.No_of_Robots)
+        self.Formation = "None"
         # Vertical Formation
         # self.P_Des = np.array([[0,0],[0,1],[1,0],[1,1],[2,0],[2,1]])/2
         # Horizontal Formation
         # self.P_Des = np.array([[1,0],[1,1],[1,2],[0,0],[0,1],[0,2]])/1.5
+        # self.P_Des = np.array([[1, 0.5], [0, 0.5], [2, 0], [2, 1], [1, 0], [1, 1]])/1.5
         # Line Formation
-        #self.P_Des = self.Form_line(0.5)
+        # self.P_Des = self.Form_line(0.5)
         # Square Formation
         self.P_Des = self.Form_square(1)
         self.Reset_Form()
-        self.TargetP = np.array([[1.5,0],[2.5,3],[4,3],[2.5,4]])
+        self.TargetP = np.array([[1.5,0],[3,0],[2.5,5],[2.5,4]])
         self.Tid = 0
         self.test = True
         self.Obstacles = np.array([[0,0],[0,1],[0,2],[0,-1],[0,-2],[1,2],[2,2],[1,-2],[2,-2],[3,0],[3,-1],[3,1],[3,2],[3,-2]])
@@ -66,7 +68,7 @@ class Robot():
 
     def Form_line(self, Dist):
         self.Formation = "Line"
-        Des = np.array([[0, 0], [0, 1], [0.5, 0], [0.5, 1], [1, 0], [1, 1]])*Dist
+        Des = np.array([[0, 0], [0, 3], [0, 1], [0, 4], [0, 2], [0, 5]])*Dist
         return Des
 
     def get_Incidence(self, Edges, n_vertices):
@@ -155,7 +157,8 @@ class Robot():
         returns a list of neighbors (i.e. robots within 2m distance) to which messages can be sent
         """
         return self.neighbors
-    
+    def control_law(self):
+
     def compute_controller(self):
         """ 
         function that will be called each control cycle which implements the control law
@@ -207,13 +210,13 @@ class Robot():
             Rg = self.DistJacobian(Apos, self.Edges)
 
 
-            TarM[self.id, :] = Tdiff
-            if (Tdiff[0] < 0.5 and Tdiff[1] < 0.5):
-                if (np.abs(np.sum(G)) < 0.01):
+            #TarM[self.id, :] = Tdiff
+            if (Tdiff[0] < 0.6 and Tdiff[1] < 0.6):
+                if (np.abs(np.sum(G)) < 0.1):
                     # Formation Done
                     if self.Tid == 0 and self.Formation == "square":
                         self.Timer += 1
-                        if self.Timer < 1/self.dt:
+                        if self.Timer < 10:
                             print(self.id,self.Formation," Formation Done")
                             return
                         self.Timer = 0
@@ -222,12 +225,23 @@ class Robot():
                         self.Tid += 1
                         print(self.Formation, " ", self.Tid)
 
+                    if self.Tid == 1 and self.Formation == "Line":
+                        self.Timer += 1
+                        if self.Timer < 10:
+                            print(self.id, self.Formation, " Formation Done")
+                            return
+                        self.Timer = 0
+                        self.Tid += 1
+                        print(self.Formation, " ", self.Tid)
+
+
 
 
             else:
                 TarM[self.id, :] = Tdiff
 
-            Obc = Apos
+            # Obc = Apos
+            Obc = self.Obstacles
             # Obc = np.vstack([Obs,pos[0:2]])
             Diff = pos[0:2] - Obc
             for m in range(0,Diff.shape[0]):
@@ -257,9 +271,10 @@ class Robot():
                 # print(self.dt * (self.OK/ self.Var) * ObsAv)
                 # print(p_ddot)
                 # print((self.OK/ self.Var) * ObsAv)
-
+            p_ddot = np.zeros(([6,2]))
             # Non Linear Contol Law
-            p_ddot = self.K2 * (np.transpose(Rg) @ G).reshape([-1,2])
+            if not (self.id == 6):
+                p_ddot = self.K2 * (np.transpose(Rg) @ G).reshape([-1,2])
             # p_ddot += (self.OK / self.Var) * ObsAv
             p_ddot += self.K3 * TarM
             # if(self.id == 5):
@@ -278,7 +293,7 @@ class Robot():
             #     self.test = False
 
             # if (self.id == 5):
-            #     print(dx,dy,Rg.shape)
+            #     print(ObsAv)
 
             # integrate
             des_pos_x = pos[0] + self.dt * dx
