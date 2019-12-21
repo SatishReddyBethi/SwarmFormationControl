@@ -30,7 +30,7 @@ class World():
         p.resetBasePositionAndOrientation(self.ball2, [4., 2., 0.5], (0., 0., 0.5, 0.5))
 
         p.resetDebugVisualizerCamera(7.0,90.0, -43.0, (1., 1., 0.0))
-        
+        #Edit
         # Add objects
         wallId = p.loadSDF("../models/walls.sdf")[0]
         p.resetBasePositionAndOrientation(wallId, [0., -1., 0], (0., 0., 0.5, 0.5))
@@ -113,7 +113,7 @@ class World():
             for j,r2 in enumerate(self.robots):
                 if(r.id != r2.id):
                     pos2, or2 = r2.get_pos_and_orientation()
-                    if(np.linalg.norm(pos1-pos2) < self.max_communication_distance):
+                    if(np.linalg.norm(pos1-pos2) < 100):#self.max_communication_distance):#Edit
                         r.neighbors.append(j)
         
         # for each robot send and receive messages
