@@ -28,33 +28,40 @@ class Robot():
         self.neighbors = []
 
         self.No_of_Robots = 6
-        # self.Edges = self.Complete_Graph(self.No_of_Robots)
-        self.Edges = np.array([[0,1],[0,2],[1,2],[1,3],[2,3],[3,4],[2,4],[4,5],[3,5]])
+        self.Edges = self.Complete_Graph(self.No_of_Robots)
+        # self.Edges = np.array([[0,1],[0,2],[1,2],[1,3],[2,3],[3,4],[2,4],[4,5],[3,5]])
         self.L = self.get_laplacian(self.Edges,self.No_of_Robots,False)
-        self.K1 = 1
-        self.K2 = 10/self.dt
-        self.K3 = 1 /self.dt
-        self.OK = 5/self.dt
+        self.K1 = 5
+        self.K2 = 3/self.dt
+        self.K3 = 10
+        self.OK = 50/self.dt
         self.D = 0 /self.dt
-        self.Var = 0.001
+        self.Var = 0.1
         self.E = self.get_Incidence(self.Edges,self.No_of_Robots)
         self.Formation = "None"
         # Vertical Formation
         # self.P_Des = np.array([[0,0],[0,1],[1,0],[1,1],[2,0],[2,1]])/2
         # Horizontal Formation
         # self.P_Des = np.array([[1,0],[1,1],[1,2],[0,0],[0,1],[0,2]])/1.5
-        # self.P_Des = np.array([[1, 0.5], [0, 0.5], [2, 0], [2, 1], [1, 0], [1, 1]])/1.5
+        # self.P_Des = self.Form_HRec(0.5)
         # Line Formation
         # self.P_Des = self.Form_line(0.5)
         # Square Formation
         self.P_Des = self.Form_square(1)
         self.Reset_Form()
-        self.TargetP = np.array([[1.5,0],[3,0],[2.5,5],[2.5,4]])
+        self.TargetP = np.array([[1,-0.5],[2,-0.5],[3,0],[2.7,1.5],[2.5,3],[2.5,4]])
         self.Tid = 0
         self.test = True
         self.Obstacles = np.array([[0,0],[0,1],[0,2],[0,-1],[0,-2],[1,2],[2,2],[1,-2],[2,-2],[3,0],[3,-1],[3,1],[3,2],[3,-2]])
         self.Timer = 0
-
+        self.FormStable = False
+        self.StartTimer = False
+        self.Thr = 0.01
+        if (self.id == 2):
+            self.OffTimer = 0
+        else:
+            self.OffTimer = 0
+    # region My Functions
     def Reset_Form(self):
         self.Z_Des = np.transpose(self.E) @ self.P_Des
         self.Gdsq = np.square(np.transpose(self.E) @ self.P_Des)  # [x^2,y^2]
@@ -69,6 +76,11 @@ class Robot():
     def Form_line(self, Dist):
         self.Formation = "Line"
         Des = np.array([[0, 0], [0, 3], [0, 1], [0, 4], [0, 2], [0, 5]])*Dist
+        return Des
+
+    def Form_HRec(self, Scale):
+        self.Formation = "HRec"
+        Des = np.array([[1, -1], [0, -1], [1, 0], [0, 0], [1, 1], [0, 1]])*Scale
         return Des
 
     def get_Incidence(self, Edges, n_vertices):
@@ -115,7 +127,9 @@ class Robot():
             J[e, 2 * (Edges[e][1])] = -2 * (x[Edges[e][0]] - x[Edges[e][1]])
             J[e, 2 * (Edges[e][1]) + 1] = -2 * (y[Edges[e][0]] - y[Edges[e][1]])
         return J
+    # endregion
 
+    # region In-built Functions
     def reset(self):
         """
         Moves the robot back to its initial position 
@@ -157,9 +171,10 @@ class Robot():
         returns a list of neighbors (i.e. robots within 2m distance) to which messages can be sent
         """
         return self.neighbors
-    def control_law(self):
+    # endregion
 
     def compute_controller(self):
+        # region Input Info
         """ 
         function that will be called each control cycle which implements the control law
         TO BE MODIFIED
@@ -182,6 +197,7 @@ class Robot():
         dx = 0.
         dy = 0.
         # print(messages)
+        # endregion
         if messages:
             # similar to laplacian but for each robot
             # for m in messages:
@@ -195,106 +211,128 @@ class Robot():
                 Apos[m[0],:]=m[1][0:2]
 
             TarM = np.zeros([6,2])
-            Tdiff = self.TargetP[self.Tid,:]-pos[0:2]
-
-            # if(Tdiff[0] <0.5 and Tdiff[1] <0.5):
-            #     self.Tid += 1
-            #     print(self.Tid)
-            # else:
-            #     TarM[self.id,:] = Tdiff
-
-            NewGd = np.square(np.transpose(self.E) @ Apos)
-            NewGd = (NewGd[:, 0] + NewGd[:, 1]).reshape([-1, 1])
-            G = self.Gdsq - NewGd
-
-            Rg = self.DistJacobian(Apos, self.Edges)
-
-
-            #TarM[self.id, :] = Tdiff
-            if (Tdiff[0] < 0.6 and Tdiff[1] < 0.6):
-                if (np.abs(np.sum(G)) < 0.1):
-                    # Formation Done
-                    if self.Tid == 0 and self.Formation == "square":
-                        self.Timer += 1
-                        if self.Timer < 10:
-                            print(self.id,self.Formation," Formation Done")
-                            return
-                        self.Timer = 0
-                        self.P_Des = self.Form_line(0.5)
-                        self.Reset_Form()
-                        self.Tid += 1
-                        print(self.Formation, " ", self.Tid)
-
-                    if self.Tid == 1 and self.Formation == "Line":
-                        self.Timer += 1
-                        if self.Timer < 10:
-                            print(self.id, self.Formation, " Formation Done")
-                            return
-                        self.Timer = 0
-                        self.Tid += 1
-                        print(self.Formation, " ", self.Tid)
+            TarM[self.id, :] = self.TargetP[self.Tid,:]-pos[0:2]
+            Cdiff = Apos-pos[0:2]
+            Cdiff = np.sqrt(np.square(Cdiff[:,0])+np.square(Cdiff[:,1]))
+            Cdiff = np.sum(Cdiff)
+            Ddiff = self.P_Des-self.P_Des[self.id]
+            Ddiff = np.sqrt(np.square(Ddiff[:, 0]) + np.square(Ddiff[:, 1]))
+            Ddiff = np.sum(Ddiff)
+            Tdiff = np.abs(Ddiff - Cdiff)
 
 
 
 
-            else:
-                TarM[self.id, :] = Tdiff
-
-            # Obc = Apos
-            Obc = self.Obstacles
+            # region Obstacles
+            Obc = Apos
+            # Obc = self.Obstacles
             # Obc = np.vstack([Obs,pos[0:2]])
             Diff = pos[0:2] - Obc
-            for m in range(0,Diff.shape[0]):
-                if (np.square(Diff[m,0])+np.square(Diff[m,1]))>0.5:
-                    Diff[m,:] = np.array([0,0])
+            for m in range(0, Diff.shape[0]):
+                if (np.sqrt(np.square(Diff[m, 0]) + np.square(Diff[m, 1]))) > 0.35:
+                    Diff[m, :] = np.array([0, 0])
+
             DiffY = Diff[:, 1].reshape([1, -1])
             DiffX = Diff[:, 0].reshape([1, -1])
             x_odot = np.sum(np.exp(-np.square(DiffX) / self.Var) * DiffX)
             y_odot = np.sum(np.exp(-np.square(DiffY) / self.Var) * DiffY)
 
             ObsAv = np.array([x_odot, y_odot])
+            # endregion
 
 
-            # # if self.id  == 0:
-            # #     print(self.L[self.id]@Apos)
-            # if self.id == 6:
-            #     p_dot = -self.K1 * np.matmul(self.L, Apos) + self.K1 * np.matmul(self.E, self.Z_Des) \
-            #             + self.K3 * TarM
-            # else:
-            #     p_dot = -self.K1 * np.matmul(self.L, Apos) + self.K1 * np.matmul(self.E, self.Z_Des)
+            NewGd = np.square(np.transpose(self.E) @ Apos)
+            NewGd = (NewGd[:, 0] + NewGd[:, 1]).reshape([-1, 1])
+            G = self.Gdsq - NewGd
+            Rg = self.DistJacobian(Apos, self.Edges)
+            p_ddot = np.zeros(([6, 2]))
+
+            if (Tdiff < self.Thr):
+                self.StartTimer = True
 
 
-            #p_ddot = -self.K2 * np.matmul(self.L, Apos) + self.K2 * np.matmul(self.E, self.Z_Des)
-            #p_ddot += - self.D * (self.L@p_dot)
-            #p_ddot += (self.OK/ self.Var) * ObsAv
-            # if(self.id ==1):
-                # print(self.dt * (self.OK/ self.Var) * ObsAv)
-                # print(p_ddot)
-                # print((self.OK/ self.Var) * ObsAv)
-            p_ddot = np.zeros(([6,2]))
-            # Non Linear Contol Law
-            if not (self.id == 6):
-                p_ddot = self.K2 * (np.transpose(Rg) @ G).reshape([-1,2])
-            # p_ddot += (self.OK / self.Var) * ObsAv
-            p_ddot += self.K3 * TarM
-            # if(self.id == 5):
-                # print(self.Tid)
-            # print(p_ddot)
-            # if self.test:
-            #     print(dx,dy)
-            dx = 0#p_dot[self.id,0]
-            dx += self.dt * p_ddot[self.id,0]
-            # dx += + 2-pos[0]
-            dy = 0#p_dot[self.id,1]
-            dy += self.dt * p_ddot[self.id,1]
-            # dy += 4-pos[1]
-            # if self.test:
-            #     print(dx,dy,pos[0:2],"\n",ObsAv)
-            #     self.test = False
+            if(self.StartTimer):
+                self.Timer += 1
+                if (self.Timer > 500+self.OffTimer):
+                    self.FormStable = True
+                    self.StartTimer = False
+                    self.Timer = 0
 
-            # if (self.id == 5):
-            #     print(ObsAv)
+            if(self.Tid > 3 and np.sum(TarM[self.id, 0])<5):
+                TarM[self.id, 0] = 5
+            if (self.Tid > 3 and np.sum(TarM[self.id, 1]) < 5):
+                TarM[self.id, 1] = 5
+            if (self.Tid > 3 and np.sum(TarM[self.id, 1]) > -5):
+                TarM[self.id, 1] = -5
+            if (self.Tid > 3 and np.sum(TarM[self.id, 1]) > -5):
+                TarM[self.id, 1] = -5
 
+            if (self.Tid > 3 and np.sum(TarM[self.id, :]) < 0.01):
+                self.Tid +=1
+
+            if (self.FormStable):
+                # Formation Done
+                if self.Tid == 0 and self.Formation == "square":
+                    self.P_Des = self.Form_HRec(0.5)
+                    self.Reset_Form()
+                    # self.Tid += 1
+                    # self.FormStable = False
+                    print(self.P_Des, self.Formation, " ", self.Tid)
+                    # self.K1 = 5
+                    # self.K2 = 50
+            if (self.Tid < self.TargetP.shape[0]-1 and self.FormStable):
+                self.Tid += 1
+                if(self.Tid == 1):
+                    self.K1 = 2
+                    self.K3 = 10
+                    self.Thr = 0.001
+                if (self.Tid == 2):
+                    self.K1 = 20
+                    self.K3 = 1
+                    self.P_Des = self.Form_HRec(0.5)
+                    self.Reset_Form()
+                self.FormStable = False
+            # Linear Control Law
+            p_dot = np.zeros([6,2])
+            p_dot = -self.K1 * np.matmul(self.L, Apos) + self.K1 * np.matmul(self.E, self.Z_Des)
+            p_dot += self.dt * (self.OK / self.Var) * ObsAv
+            # p_dot += self.K3 * TarM
+            # Non - linear Control Law
+            # p_ddot = self.K2 * (np.transpose(Rg) @ G).reshape([-1, 2])
+            # p_dot += p_ddot*self.dt
+            if(self.id == 0):
+                # print(Tdiff,self.TargetP[self.Tid,:],np.sum(G),self.Tid,self.Timer)
+                p_dot = self.K3 * TarM
+            if (self.id == 0):
+                print(Tdiff,self.TargetP[self.Tid,:],np.sum(G),self.Tid,self.Timer)
+                # if(self.Tid == 1):
+                    # p_dot += -self.K1 * np.matmul(self.L, Apos) + self.K1 * np.matmul(self.E, self.Z_Des)
+
+            dx = p_dot[self.id, 0]
+            dy = p_dot[self.id, 1]
+
+                    # Non - linear Control
+                    # p_ddot = self.K2 * (np.transpose(Rg) @ G).reshape([-1, 2])
+                    # p_ddot += (self.OK / self.Var) * ObsAv
+                    # dx = self.dt * p_ddot[self.id, 0]
+                    # dy = self.dt * p_ddot[self.id, 1]
+            #else:
+                # TarM[self.id, :] = Tdiff
+                # # Linear Control
+                # p_dot = -self.K1 * np.matmul(self.L, Apos) + self.K1 * np.matmul(self.E, self.Z_Des)
+                # p_dot += self.dt * (self.OK / self.Var) * ObsAv
+                # p_dot += self.K3 * TarM
+                # dx = p_dot[self.id, 0]
+                # dy = p_dot[self.id, 1]
+
+                # Non - linear Control
+                # p_ddot = self.K2 * (np.transpose(Rg) @ G).reshape([-1, 2])
+                # p_ddot += self.K3 * TarM
+                # p_ddot += (self.OK / self.Var) * ObsAv
+                # dx = self.dt * p_ddot[self.id, 0]
+                # dy = self.dt * p_ddot[self.id, 1]
+
+            # region Robot Wheel Control
             # integrate
             des_pos_x = pos[0] + self.dt * dx
             des_pos_y = pos[1] + self.dt * dy
@@ -307,6 +345,7 @@ class Robot():
             right_wheel = np.sin(des_theta-rot)*vel_norm + np.cos(des_theta-rot)*vel_norm
             left_wheel = -np.sin(des_theta-rot)*vel_norm + np.cos(des_theta-rot)*vel_norm
             self.set_wheel_velocity([left_wheel, right_wheel])
+            # endregion
         
 
     
